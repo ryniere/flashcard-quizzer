@@ -1,0 +1,42 @@
+[
+  {
+    "front": "What is a variable in Python?",
+    "back": "A named reference that stores a value in memory, created by assignment with the = operator."
+  },
+  {
+    "front": "How do you create a list in Python?",
+    "back": "Use square brackets with comma-separated values, e.g. my_list = [1, 2, 3]."
+  },
+  {
+    "front": "What is a dictionary in Python?",
+    "back": "An unordered collection of key-value pairs defined with curly braces, e.g. {\"name\": \"Alice\"}."
+  },
+  {
+    "front": "How does a tuple differ from a list?",
+    "back": "Tuples are immutable sequences created with parentheses, so their elements cannot be changed after creation."
+  },
+  {
+    "front": "How do you define a function in Python?",
+    "back": "Use the def keyword followed by the function name, parentheses for parameters, and a colon."
+  },
+  {
+    "front": "What are the two main types of loops in Python?",
+    "back": "for loops iterate over sequences, while while loops repeat as long as a condition is true."
+  },
+  {
+    "front": "How do you define a class in Python?",
+    "back": "Use the class keyword followed by the class name, with __init__ as the constructor method."
+  },
+  {
+    "front": "What is an f-string in Python?",
+    "back": "A formatted string literal prefixed with f that allows embedding expressions inside curly braces."
+  },
+  {
+    "front": "What are the two boolean values in Python?",
+    "back": "True and False, which are capitalized keywords used for logical operations."
+  },
+  {
+    "front": "How do you import a module in Python?",
+    "back": "Use the import statement, e.g. import math, or from math import sqrt for specific items."
+  }
+]
