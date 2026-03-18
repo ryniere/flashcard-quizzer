@@ -1,0 +1,36 @@
+{
+  "cards": [
+    {
+      "front": "What is Newton's second law of motion?",
+      "back": "Force equals mass times acceleration (F = ma)."
+    },
+    {
+      "front": "What is the speed of light in a vacuum?",
+      "back": "Approximately 299,792,458 meters per second."
+    },
+    {
+      "front": "What is the chemical symbol for water?",
+      "back": "H2O, meaning each molecule contains two hydrogen atoms and one oxygen atom."
+    },
+    {
+      "front": "What is the pH of a neutral solution?",
+      "back": "A pH of 7, which is neither acidic nor basic."
+    },
+    {
+      "front": "What is the powerhouse of the cell?",
+      "back": "The mitochondria, which generates most of the cell's ATP energy."
+    },
+    {
+      "front": "What molecule carries genetic information in living organisms?",
+      "back": "DNA (deoxyribonucleic acid), a double-helix structure found in cell nuclei."
+    },
+    {
+      "front": "What is the closest star to Earth?",
+      "back": "The Sun, located approximately 93 million miles (150 million km) away."
+    },
+    {
+      "front": "How many planets are in our solar system?",
+      "back": "Eight planets, after Pluto was reclassified as a dwarf planet in 2006."
+    }
+  ]
+}

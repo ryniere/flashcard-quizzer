@@ -1,53 +1,81 @@
 """
-File handling utility for data persistence.
+File handling utility for secure file I/O.
 
-This module demonstrates file I/O operations and error handling
-patterns that students can learn from and extend.
+Provides path validation and safe file reading with size limits.
 """
+from __future__ import annotations
 
-import json
 import os
-from typing import Any, Dict
-from pathlib import Path
+
+# Anchored to the project root (parent of utils/), fully resolved (no symlinks)
+SAFE_BASE_DIR = os.path.realpath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
-class FileHandler:
-    """Handle file operations for data persistence."""
-    
-    def __init__(self, data_dir: str = "data"):
-        self.data_dir = Path(data_dir)
-        self.data_dir.mkdir(exist_ok=True)
-    
-    def save_data(self, filename: str, data: Dict[str, Any]) -> None:
-        """Save data to a JSON file."""
-        filepath = self.data_dir / filename
-        try:
-            with open(filepath, 'w', encoding='utf-8') as file:
-                json.dump(data, file, indent=2, ensure_ascii=False)
-        except (IOError, TypeError) as e:
-            raise RuntimeError(f"Failed to save data to {filename}: {e}")
-    
-    def load_data(self, filename: str) -> Dict[str, Any]:
-        """Load data from a JSON file."""
-        filepath = self.data_dir / filename
-        try:
-            with open(filepath, 'r', encoding='utf-8') as file:
-                return json.load(file)
-        except FileNotFoundError:
-            return {}
-        except (IOError, json.JSONDecodeError) as e:
-            raise RuntimeError(f"Failed to load data from {filename}: {e}")
-    
-    def file_exists(self, filename: str) -> bool:
-        """Check if a file exists in the data directory."""
-        return (self.data_dir / filename).exists()
-    
-    def delete_file(self, filename: str) -> None:
-        """Delete a file from the data directory."""
-        filepath = self.data_dir / filename
-        if filepath.exists():
-            filepath.unlink()
-    
-    def list_files(self) -> list[str]:
-        """List all files in the data directory."""
-        return [f.name for f in self.data_dir.iterdir() if f.is_file()]
+def _validate_path(filepath: str) -> str:
+    """Resolve *filepath* to an absolute path and verify it lives under SAFE_BASE_DIR.
+
+    Returns the resolved absolute path on success.
+
+    Raises:
+        ValueError: If the resolved path falls outside the allowed project directory.
+    """
+    # Join relative paths to SAFE_BASE_DIR so they resolve against the
+    # project root, not the process cwd (which varies by invocation context).
+    if not os.path.isabs(filepath):
+        joined = os.path.join(SAFE_BASE_DIR, filepath)
+    else:
+        joined = filepath
+    # realpath resolves symlinks; prevents a symlink inside data/ from
+    # pointing to an external file and bypassing the containment check.
+    resolved: str = os.path.realpath(joined)
+    try:
+        common = os.path.commonpath([resolved, SAFE_BASE_DIR])
+    except ValueError:
+        # Windows: paths on different drives have no common path
+        common = ""
+    if common != SAFE_BASE_DIR:
+        raise ValueError(
+            f"Unsafe file path: '{filepath}' is outside the allowed directory."
+        )
+    return resolved
+
+
+def read_file(path: str) -> str:
+    """Read a UTF-8 text file after validating its path and checking its size.
+
+    Args:
+        path: Filesystem path (absolute or relative) to the file to read.
+
+    Returns:
+        The full contents of the file as a string.
+
+    Raises:
+        ValueError: Propagated from ``_validate_path`` when the path is unsafe.
+        SystemExit: When the file does not exist or exceeds *MAX_FILE_SIZE*.
+    """
+    resolved_path: str = _validate_path(path)
+
+    try:
+        size: int = os.path.getsize(resolved_path)
+    except FileNotFoundError:
+        raise SystemExit(
+            f"Error: File '{path}' not found.\n"
+            "   Hint: Check the path and try again."
+        )
+
+    if size > MAX_FILE_SIZE:
+        raise SystemExit(
+            f"Error: File '{path}' is too large (>10 MB).\n"
+            "   Hint: Use a smaller flashcard file."
+        )
+
+    try:
+        with open(resolved_path, encoding="utf-8") as fh:
+            return fh.read()
+    except FileNotFoundError:
+        raise SystemExit(
+            f"Error: File '{path}' not found.\n"
+            "   Hint: Check the path and try again."
+        )
