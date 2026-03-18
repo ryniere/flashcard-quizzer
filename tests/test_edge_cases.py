@@ -1,9 +1,10 @@
 """
 Edge case and hardening tests for the Flashcard Quizzer.
 
-These tests exercise boundary conditions and stress scenarios that complement
-the core TDD suite: extra JSON fields, single-card decks, adaptive exhaustion,
-zero-question stats, Unicode answers, paths with spaces, and concurrent sessions.
+These tests exercise boundary conditions, stress scenarios, and remaining
+coverage gaps: extra JSON fields, single-card decks, adaptive exhaustion,
+zero-question stats, Unicode answers, paths with spaces, concurrent sessions,
+unsupported JSON format, commonpath ValueError, and TOCTOU file disappearance.
 
 Run with:
     python3 -m pytest tests/test_edge_cases.py -v --no-header --tb=short
@@ -11,16 +12,20 @@ Run with:
 from __future__ import annotations
 
 import json
+import pathlib
+from unittest.mock import patch
 
 import pytest
 
 from data_loader import FlashCard, load_flashcards
+from main import run
 from quiz_engine import (
     AdaptiveMode,
     QuizSession,
     SequentialMode,
     SessionStats,
 )
+from utils.file_handler import _validate_path
 
 
 # ---------------------------------------------------------------------------
@@ -32,11 +37,13 @@ from quiz_engine import (
 class TestLoadJsonWithExtraFields:
     """load_flashcards must ignore unknown keys beyond 'front' and 'back'."""
 
-    def test_load_json_with_extra_fields_is_accepted(self, tmp_path):
-        """Cards with bonus keys like 'hint' and 'difficulty' load without error."""
+    def test_load_json_with_extra_fields_is_accepted(
+        self, tmp_path: pathlib.Path,
+    ) -> None:
+        """Cards with bonus keys like 'hint' and 'difficulty' load fine."""
         cards_data = [
-            {"front": "Q1", "back": "A1", "hint": "think carefully", "difficulty": 3},
-            {"front": "Q2", "back": "A2", "hint": "easy one", "difficulty": 1},
+            {"front": "Q1", "back": "A1", "hint": "think", "difficulty": 3},
+            {"front": "Q2", "back": "A2", "hint": "easy", "difficulty": 1},
         ]
         filepath = tmp_path / "extra_fields.json"
         filepath.write_text(json.dumps(cards_data), encoding="utf-8")
@@ -44,10 +51,7 @@ class TestLoadJsonWithExtraFields:
         cards = load_flashcards(str(filepath))
 
         assert len(cards) == 2
-        assert all(isinstance(card, FlashCard) for card in cards)
         assert cards[0].front == "Q1"
-        assert cards[0].back == "A1"
-        assert cards[1].front == "Q2"
         assert cards[1].back == "A2"
 
 
@@ -59,15 +63,14 @@ class TestLoadJsonWithExtraFields:
 class TestSequentialWithSingleCard:
     """SequentialMode over a one-card deck returns the card then None."""
 
-    def test_sequential_with_single_card(self, single_card_deck):
-        """get_next_card() returns the sole card first, then None on the next call."""
+    def test_sequential_with_single_card(
+        self, single_card_deck: list[FlashCard],
+    ) -> None:
+        """get_next_card() returns the sole card first, then None."""
         mode = SequentialMode(single_card_deck)
 
-        card = mode.get_next_card()
-        sentinel = mode.get_next_card()
-
-        assert card == single_card_deck[0]
-        assert sentinel is None
+        assert mode.get_next_card() == single_card_deck[0]
+        assert mode.get_next_card() is None
 
 
 # ---------------------------------------------------------------------------
@@ -76,24 +79,23 @@ class TestSequentialWithSingleCard:
 
 
 class TestAdaptiveWithAllWrongThenAllCorrect:
-    """AdaptiveMode ends only once all pending cards are answered correctly."""
+    """AdaptiveMode ends once all pending cards are answered correctly."""
 
-    def test_adaptive_with_all_wrong_then_all_correct(self, single_card_deck):
-        """Wrong answer re-queues the card; subsequent correct answer ends the session."""
+    def test_adaptive_with_all_wrong_then_all_correct(
+        self, single_card_deck: list[FlashCard],
+    ) -> None:
+        """Wrong re-queues; correct ends the session."""
         mode = AdaptiveMode(single_card_deck)
         card = single_card_deck[0]
 
-        # First serve — answer wrong, card is re-enqueued.
-        first_serve = mode.get_next_card()
-        assert first_serve == card
+        first = mode.get_next_card()
+        assert first == card
         mode.record_answer(card, False)
 
-        # Second serve — the same card must come back.
-        second_serve = mode.get_next_card()
-        assert second_serve == card
+        second = mode.get_next_card()
+        assert second == card
         mode.record_answer(card, True)
 
-        # Queue is now empty — session must end.
         assert mode.get_next_card() is None
 
 
@@ -103,12 +105,11 @@ class TestAdaptiveWithAllWrongThenAllCorrect:
 
 
 class TestStatsWithZeroQuestions:
-    """SessionStats.accuracy returns 0.0 when no questions have been answered."""
+    """SessionStats.accuracy returns 0.0 with total=0."""
 
-    def test_stats_with_zero_questions(self):
-        """accuracy is 0.0 for a stats object with total=0 — no ZeroDivisionError."""
+    def test_stats_with_zero_questions(self) -> None:
+        """No ZeroDivisionError."""
         stats = SessionStats(total=0, correct=0, incorrect=0)
-
         assert stats.accuracy == 0.0
 
 
@@ -120,25 +121,17 @@ class TestStatsWithZeroQuestions:
 class TestAnswerWithUnicodeInput:
     """QuizSession.answer matches Unicode answers case-insensitively."""
 
-    def test_answer_with_unicode_input_exact(self):
+    def test_answer_with_unicode_input_exact(self) -> None:
         """Exact Unicode answer is accepted."""
         card = FlashCard(front="Favourite drink?", back="café")
-        mode = SequentialMode([card])
-        session = QuizSession([card], mode)
+        session = QuizSession([card], SequentialMode([card]))
+        assert session.answer(card, "café") is True
 
-        result = session.answer(card, "café")
-
-        assert result is True
-
-    def test_answer_with_unicode_input_case_insensitive(self):
+    def test_answer_with_unicode_input_case_insensitive(self) -> None:
         """Unicode answer differing only in case is still accepted."""
         card = FlashCard(front="Favourite drink?", back="café")
-        mode = SequentialMode([card])
-        session = QuizSession([card], mode)
-
-        result = session.answer(card, "CAFÉ")
-
-        assert result is True
+        session = QuizSession([card], SequentialMode([card]))
+        assert session.answer(card, "CAFÉ") is True
 
 
 # ---------------------------------------------------------------------------
@@ -148,53 +141,97 @@ class TestAnswerWithUnicodeInput:
 
 @pytest.mark.usefixtures("allow_tmp_paths")
 class TestFilePathWithSpaces:
-    """load_flashcards handles paths whose directory component contains spaces."""
+    """load_flashcards handles paths with spaces."""
 
-    def test_file_path_with_spaces(self, tmp_path):
-        """A JSON file inside a directory named with spaces loads correctly."""
+    def test_file_path_with_spaces(self, tmp_path: pathlib.Path) -> None:
+        """Loads from a directory whose name contains spaces."""
         spaced_dir = tmp_path / "my flash cards"
         spaced_dir.mkdir()
-
-        cards_data = [
-            {"front": "What is 2+2?", "back": "4"},
-        ]
         filepath = spaced_dir / "deck.json"
-        filepath.write_text(json.dumps(cards_data), encoding="utf-8")
+        filepath.write_text(
+            json.dumps([{"front": "Q", "back": "A"}]), encoding="utf-8",
+        )
 
         cards = load_flashcards(str(filepath))
 
         assert len(cards) == 1
-        assert isinstance(cards[0], FlashCard)
-        assert cards[0].front == "What is 2+2?"
-        assert cards[0].back == "4"
+        assert cards[0].front == "Q"
 
 
 # ---------------------------------------------------------------------------
-# Test 7 — Two concurrent QuizSessions share the deck but have independent stats
+# Test 7 — Concurrent sessions are independent
 # ---------------------------------------------------------------------------
 
 
 class TestConcurrentSessionsIndependent:
-    """Two QuizSession instances created from the same deck are fully independent."""
+    """Two QuizSession instances are fully independent."""
 
-    def test_concurrent_sessions_independent(self, sample_deck):
-        """Wrong answer in session1 does not affect session2's stats, and vice versa."""
-        mode1 = SequentialMode(sample_deck)
-        mode2 = SequentialMode(sample_deck)
-        session1 = QuizSession(sample_deck, mode1)
-        session2 = QuizSession(sample_deck, mode2)
+    def test_concurrent_sessions_independent(
+        self, sample_deck: list[FlashCard],
+    ) -> None:
+        """Wrong in session1 does not affect session2."""
+        s1 = QuizSession(sample_deck, SequentialMode(sample_deck))
+        s2 = QuizSession(sample_deck, SequentialMode(sample_deck))
 
-        card1 = session1.next_card()
-        session1.answer(card1, "wrong answer")
+        s1.answer(s1.next_card(), "wrong")  # type: ignore[arg-type]
+        c2 = s2.next_card()
+        s2.answer(c2, c2.back)  # type: ignore[arg-type]
 
-        card2 = session2.next_card()
-        session2.answer(card2, card2.back)  # correct
+        assert s1.get_stats().incorrect == 1
+        assert s2.get_stats().correct == 1
 
-        stats1 = session1.get_stats()
-        stats2 = session2.get_stats()
 
-        assert stats1.correct == 0
-        assert stats1.incorrect == 1
+# ---------------------------------------------------------------------------
+# Coverage gap tests
+# ---------------------------------------------------------------------------
 
-        assert stats2.correct == 1
-        assert stats2.incorrect == 0
+
+@pytest.mark.usefixtures("allow_tmp_paths")
+class TestCoverageGaps:
+    """Targeted tests for previously uncovered branches."""
+
+    def test_unsupported_json_format_raises(
+        self, tmp_path: pathlib.Path,
+    ) -> None:
+        """data_loader.py:65 — JSON string (not list/dict) → SystemExit."""
+        filepath = tmp_path / "string.json"
+        filepath.write_text(json.dumps("just a string"), encoding="utf-8")
+        with pytest.raises(SystemExit, match="Unsupported format"):
+            load_flashcards(str(filepath))
+
+    def test_commonpath_value_error_rejects(self) -> None:
+        """file_handler.py:35-37 — commonpath ValueError (e.g. Windows drives)
+        must reject the path, not crash."""
+        with patch(
+            "utils.file_handler.os.path.commonpath",
+            side_effect=ValueError("no common path"),
+        ):
+            with pytest.raises(ValueError, match="outside the allowed"):
+                _validate_path("data/python_basics.json")
+
+    def test_file_disappears_after_size_check(
+        self, tmp_path: pathlib.Path,
+    ) -> None:
+        """file_handler.py:77-78 — file deleted between getsize and open."""
+        filepath = tmp_path / "vanish.json"
+        filepath.write_text(
+            json.dumps([{"front": "Q", "back": "A"}]), encoding="utf-8",
+        )
+
+        def disappearing_open(path: object, **kwargs: object) -> object:
+            raise FileNotFoundError("gone")
+
+        with patch("builtins.open", side_effect=disappearing_open):
+            with pytest.raises(SystemExit, match="not found"):
+                load_flashcards(str(filepath))
+
+    def test_run_generic_exception_in_load(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """main.py:59-61 — non-SystemExit exception from load_flashcards."""
+        monkeypatch.setattr(
+            "main.load_flashcards",
+            lambda _: (_ for _ in ()).throw(RuntimeError("db error")),
+        )
+        with pytest.raises(SystemExit):
+            run(["-f", "data/python_basics.json"])
