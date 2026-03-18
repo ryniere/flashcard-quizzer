@@ -129,3 +129,12 @@ class TestGetUserAnswer:
             get_user_answer()
 
         assert exc_info.value.code == 0
+
+    def test_eof_raises_system_exit(self, monkeypatch):
+        """Regression: EOF (Ctrl+D / piped stdin) causes SystemExit with code 0."""
+        monkeypatch.setattr("builtins.input", Mock(side_effect=EOFError))
+
+        with pytest.raises(SystemExit) as exc_info:
+            get_user_answer()
+
+        assert exc_info.value.code == 0

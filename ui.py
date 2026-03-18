@@ -33,12 +33,12 @@ def get_user_answer() -> str:
     """Prompt for and return the user's answer (stripped, max 500 chars).
 
     Raises:
-        SystemExit: If the user types 'exit' or presses Ctrl+C.
+        SystemExit: If the user types 'exit', presses Ctrl+C, or EOF is reached.
     """
     try:
         raw = input("Your answer: ")
-    except KeyboardInterrupt:
-        print()  # newline after ^C
+    except (KeyboardInterrupt, EOFError):
+        print()  # newline after ^C / EOF
         raise SystemExit(0)
 
     stripped = raw.strip()
