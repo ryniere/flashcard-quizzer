@@ -12,7 +12,7 @@ import colorama
 
 import ui
 from data_loader import load_flashcards
-from quiz_engine import QuizModeFactory, QuizSession
+from quiz_engine import AdaptiveMode, QuizModeFactory, QuizSession
 
 colorama.init(autoreset=True)
 
@@ -80,6 +80,17 @@ def run(argv: list[str] | None = None) -> None:
     except SystemExit:
         # User typed 'exit' or Ctrl+C — show stats before leaving
         pass
+    except Exception as exc:
+        # Catch all unexpected errors so user never sees a raw traceback
+        print("\nError: An unexpected error occurred.", file=sys.stderr)
+        print(f"Details: {exc}", file=sys.stderr)
+
+    # Warn if adaptive mode hit the retry cap
+    if isinstance(mode, AdaptiveMode) and mode.was_force_stopped:
+        print(
+            "\nNote: Adaptive mode stopped early (retry limit reached)."
+            " Some cards were not answered correctly."
+        )
 
     ui.display_stats(session.get_stats())
 

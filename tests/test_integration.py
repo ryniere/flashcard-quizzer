@@ -130,3 +130,39 @@ class TestRunSmoke:
             run(["-f", "data/python_basics.json", "-m", "adaptive"])
         except SystemExit as exc:
             assert exc.code == 0 or exc.code is None
+
+    def test_unexpected_error_no_traceback(self, monkeypatch, capsys):
+        """Regression: unexpected RuntimeError in UI does not leak a traceback."""
+        call_count = 0
+
+        def exploding_answer() -> str:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise RuntimeError("boom")
+            return "exit"
+
+        monkeypatch.setattr(ui, "get_user_answer", exploding_answer)
+
+        try:
+            run(["-f", "data/python_basics.json", "-m", "sequential"])
+        except SystemExit:
+            pass
+
+        captured = capsys.readouterr()
+        assert "Traceback" not in captured.out
+        assert "Traceback" not in captured.err
+
+    def test_adaptive_force_stop_warning(self, monkeypatch, capsys):
+        """Regression: adaptive retry-cap exhaustion prints a warning."""
+        # Always answer wrong so adaptive mode hits the cap
+        monkeypatch.setattr(ui, "get_user_answer", lambda: "wrong")
+
+        try:
+            run(["-f", "data/python_basics.json", "-m", "adaptive"])
+        except SystemExit:
+            pass
+
+        captured = capsys.readouterr()
+        assert "stopped early" in captured.out.lower() or \
+            "retry limit" in captured.out.lower()
