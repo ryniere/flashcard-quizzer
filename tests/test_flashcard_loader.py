@@ -144,6 +144,28 @@ class TestPathTraversal:
         with pytest.raises(ValueError):
             _validate_path(sibling)
 
+    def test_validate_path_rejects_symlink_escape(self, tmp_path):
+        """Regression: a symlink inside the project pointing outside is rejected."""
+        import os
+        from utils.file_handler import SAFE_BASE_DIR
+        external_file = tmp_path / "secret.txt"
+        external_file.write_text("secret", encoding="utf-8")
+        # Create a symlink inside the project data dir pointing outside
+        link_path = os.path.join(SAFE_BASE_DIR, "data", "_test_symlink.txt")
+        try:
+            os.symlink(str(external_file), link_path)
+            with pytest.raises(ValueError):
+                _validate_path(link_path)
+        finally:
+            if os.path.islink(link_path):
+                os.unlink(link_path)
+
+    def test_validate_path_accepts_relative_project_path(self):
+        """Relative paths like 'data/python_basics.json' resolve against project root."""
+        # This should NOT raise — the file exists in the project
+        result = _validate_path("data/python_basics.json")
+        assert result.endswith("data/python_basics.json")
+
 
 # ---------------------------------------------------------------------------
 # Size-limit tests

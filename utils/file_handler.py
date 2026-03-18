@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import os
 
-# Anchored to the project root (parent of utils/), not the process cwd
-SAFE_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Anchored to the project root (parent of utils/), fully resolved (no symlinks)
+SAFE_BASE_DIR = os.path.realpath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
@@ -21,10 +21,15 @@ def _validate_path(filepath: str) -> str:
     Raises:
         ValueError: If the resolved path falls outside the allowed project directory.
     """
-    resolved: str = os.path.abspath(filepath)
-    # Use os.path.commonpath for a true directory-boundary check.
-    # startswith() alone is bypassable: SAFE_BASE_DIR + "-malicious/file"
-    # would pass a string prefix test but is outside the project.
+    # Join relative paths to SAFE_BASE_DIR so they resolve against the
+    # project root, not the process cwd (which varies by invocation context).
+    if not os.path.isabs(filepath):
+        joined = os.path.join(SAFE_BASE_DIR, filepath)
+    else:
+        joined = filepath
+    # realpath resolves symlinks; prevents a symlink inside data/ from
+    # pointing to an external file and bypassing the containment check.
+    resolved: str = os.path.realpath(joined)
     try:
         common = os.path.commonpath([resolved, SAFE_BASE_DIR])
     except ValueError:
