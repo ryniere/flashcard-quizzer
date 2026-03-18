@@ -211,3 +211,37 @@ class TestQuizSession:
 
         assert first_card in stats.missed_cards
         assert second_card not in stats.missed_cards
+
+    def test_session_rejects_empty_deck(self):
+        """Regression: QuizSession with empty deck raises ValueError."""
+        mode = SequentialMode([])
+        with pytest.raises(ValueError, match="at least one card"):
+            QuizSession([], mode)
+
+    def test_missed_cards_tracks_duplicates_by_identity(self):
+        """Regression: two cards with same front/back are tracked separately."""
+        card_a = FlashCard(front="Q", back="A")
+        card_b = FlashCard(front="Q", back="A")
+        deck = [card_a, card_b]
+        mode = SequentialMode(deck)
+        session = QuizSession(deck, mode)
+
+        c1 = session.next_card()
+        session.answer(c1, "wrong")
+        c2 = session.next_card()
+        session.answer(c2, "wrong")
+
+        stats = session.get_stats()
+        assert len(stats.missed_cards) == 2
+
+    def test_adaptive_force_stop_is_detectable(self):
+        """Regression: retry cap sets was_force_stopped, not silent completion."""
+        deck = [FlashCard(front="Q", back="A")]
+        mode = AdaptiveMode(deck)
+
+        card = mode.get_next_card()
+        while card is not None:
+            mode.record_answer(card, correct=False)
+            card = mode.get_next_card()
+
+        assert mode.was_force_stopped is True

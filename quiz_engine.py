@@ -66,10 +66,19 @@ class AdaptiveMode(QuizMode):
         self._queue: deque[FlashCard] = deque(deck)
         self._max_serves = len(deck) * 3
         self._serve_count = 0
+        self._exhausted = False
+
+    @property
+    def was_force_stopped(self) -> bool:
+        """True if the session ended due to retry cap, not all-correct."""
+        return self._exhausted
 
     def get_next_card(self) -> FlashCard | None:
         """Return next card from queue, or None when done or cap reached."""
-        if not self._queue or self._serve_count >= self._max_serves:
+        if not self._queue:
+            return None
+        if self._serve_count >= self._max_serves:
+            self._exhausted = True
             return None
         self._serve_count += 1
         return self._queue.popleft()
@@ -125,12 +134,15 @@ class QuizSession:
     """Orchestrates a complete quiz session."""
 
     def __init__(self, deck: list[FlashCard], mode: QuizMode) -> None:
+        if not deck:
+            raise ValueError("Deck must contain at least one card.")
         self._deck = deck
         self._mode = mode
         self._total = 0
         self._correct = 0
         self._incorrect = 0
         self._missed: list[FlashCard] = []
+        self._missed_ids: set[int] = set()
 
     def next_card(self) -> FlashCard | None:
         """Return the next card from the mode, or None if done."""
@@ -147,7 +159,9 @@ class QuizSession:
             self._correct += 1
         else:
             self._incorrect += 1
-            if card not in self._missed:
+            # Track by identity (id) so duplicate-valued cards are counted
+            if id(card) not in self._missed_ids:
+                self._missed_ids.add(id(card))
                 self._missed.append(card)
         # Notify adaptive mode about the answer
         if isinstance(self._mode, AdaptiveMode):
