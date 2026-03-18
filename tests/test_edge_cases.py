@@ -173,9 +173,13 @@ class TestConcurrentSessionsIndependent:
         s1 = QuizSession(sample_deck, SequentialMode(sample_deck))
         s2 = QuizSession(sample_deck, SequentialMode(sample_deck))
 
-        s1.answer(s1.next_card(), "wrong")  # type: ignore[arg-type]
+        c1 = s1.next_card()
+        assert c1 is not None
+        s1.answer(c1, "wrong")
+
         c2 = s2.next_card()
-        s2.answer(c2, c2.back)  # type: ignore[arg-type]
+        assert c2 is not None
+        s2.answer(c2, c2.back)
 
         assert s1.get_stats().incorrect == 1
         assert s2.get_stats().correct == 1
