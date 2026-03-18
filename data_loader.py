@@ -67,14 +67,26 @@ def load_flashcards(filepath: str) -> list[FlashCard]:
             f"   Hint: Use a JSON array or an object with a 'cards' key."
         )
 
-    # Step 4: Validate the cards list
+    # Step 4: Validate the cards list is actually a list
+    if not isinstance(cards, list):
+        raise SystemExit(
+            f"Error: 'cards' must be an array in '{filename}'\n"
+            f"   Hint: The 'cards' key should contain a JSON array."
+        )
+
     if not cards:
         raise SystemExit(
             f"Error: No flashcards found in '{filename}'\n"
             f"   Hint: Add at least one card with 'front' and 'back' fields."
         )
 
-    for card in cards:
+    for i, card in enumerate(cards):
+        if not isinstance(card, dict):
+            raise SystemExit(
+                f"Error: Card {i + 1} is not a valid object in '{filename}'\n"
+                f"   Hint: Each card must be a JSON object with 'front' and"
+                f" 'back' keys."
+            )
         for field in ("front", "back"):
             if field not in card:
                 raise SystemExit(

@@ -22,7 +22,15 @@ def _validate_path(filepath: str) -> str:
         ValueError: If the resolved path falls outside the allowed project directory.
     """
     resolved: str = os.path.abspath(filepath)
-    if not resolved.startswith(SAFE_BASE_DIR):
+    # Use os.path.commonpath for a true directory-boundary check.
+    # startswith() alone is bypassable: SAFE_BASE_DIR + "-malicious/file"
+    # would pass a string prefix test but is outside the project.
+    try:
+        common = os.path.commonpath([resolved, SAFE_BASE_DIR])
+    except ValueError:
+        # Windows: paths on different drives have no common path
+        common = ""
+    if common != SAFE_BASE_DIR:
         raise ValueError(
             f"Unsafe file path: '{filepath}' is outside the allowed directory."
         )

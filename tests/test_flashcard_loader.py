@@ -93,6 +93,22 @@ class TestLoadFlashcardsErrors:
         with pytest.raises(SystemExit):
             load_flashcards(nonexistent)
 
+    def test_load_cards_not_dicts_raises(self, tmp_path):
+        """Regression: JSON array of non-objects like [123] causes SystemExit."""
+        import json
+        filepath = tmp_path / "bad_cards.json"
+        filepath.write_text(json.dumps([123, 456]), encoding="utf-8")
+        with pytest.raises(SystemExit):
+            load_flashcards(str(filepath))
+
+    def test_load_cards_key_not_list_raises(self, tmp_path):
+        """Regression: {"cards": 123} causes SystemExit, not TypeError."""
+        import json
+        filepath = tmp_path / "bad_cards_key.json"
+        filepath.write_text(json.dumps({"cards": 123}), encoding="utf-8")
+        with pytest.raises(SystemExit):
+            load_flashcards(str(filepath))
+
 
 # ---------------------------------------------------------------------------
 # Security tests — path traversal
@@ -116,6 +132,17 @@ class TestPathTraversal:
         """_validate_path() raises ValueError for an absolute path outside the project."""
         with pytest.raises(ValueError):
             _validate_path("/etc/passwd")
+
+    def test_validate_path_rejects_sibling_directory(self):
+        """Regression: a sibling dir matching SAFE_BASE_DIR as string prefix is rejected.
+
+        e.g. if SAFE_BASE_DIR is /home/project, then /home/project-evil/secret.txt
+        must NOT pass validation even though it starts with the same string prefix.
+        """
+        from utils.file_handler import SAFE_BASE_DIR
+        sibling = SAFE_BASE_DIR + "-malicious/secret.txt"
+        with pytest.raises(ValueError):
+            _validate_path(sibling)
 
 
 # ---------------------------------------------------------------------------
