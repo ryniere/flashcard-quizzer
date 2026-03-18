@@ -181,6 +181,7 @@ class TestQuizSession:
 
         # sample_deck[0].back == "A programming language"
         card = session.next_card()
+        assert card is not None
         result = session.answer(card, "A PROGRAMMING LANGUAGE")
 
         assert result is True
@@ -192,6 +193,7 @@ class TestQuizSession:
 
         # sample_deck[0].back == "A programming language"
         card = session.next_card()
+        assert card is not None
         result = session.answer(card, "  A programming language  ")
 
         assert result is True
@@ -202,9 +204,11 @@ class TestQuizSession:
         session = QuizSession(sample_deck, mode)
 
         first_card = session.next_card()
+        assert first_card is not None
         session.answer(first_card, "wrong answer")  # deliberately incorrect
 
         second_card = session.next_card()
+        assert second_card is not None
         session.answer(second_card, second_card.back)  # correct
 
         stats = session.get_stats()
@@ -227,8 +231,10 @@ class TestQuizSession:
         session = QuizSession(deck, mode)
 
         c1 = session.next_card()
+        assert c1 is not None
         session.answer(c1, "wrong")
         c2 = session.next_card()
+        assert c2 is not None
         session.answer(c2, "wrong")
 
         stats = session.get_stats()
