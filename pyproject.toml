@@ -6,5 +6,13 @@ disallow_untyped_defs = true
 warn_return_any = true
 warn_unused_ignores = true
 
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+check_untyped_defs = true
+
 [tool.coverage.run]
 omit = ["tests/*"]
+
+[tool.coverage.report]
+fail_under = 81
