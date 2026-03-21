@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Flashcard Quizzer — Home{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="hero">
+        <h1>Welcome to Flashcard Quizzer</h1>
+        <p>Choose a deck and quiz mode to start studying.</p>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+
+    <form action="{{ url_for('start_quiz') }}" method="post" class="setup-form">
+        <div class="form-group">
+            <label for="deck">Choose a Deck</label>
+            <div class="deck-grid">
+                {% for deck in decks %}
+                <label class="deck-card">
+                    <input type="radio" name="deck" value="{{ deck.filename }}"
+                           {% if loop.first %}checked{% endif %}>
+                    <div class="deck-card-inner">
+                        <span class="deck-icon">&#x1F3B4;</span>
+                        <span class="deck-name">{{ deck.name }}</span>
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Quiz Mode</label>
+            <div class="mode-grid">
+                <label class="mode-option">
+                    <input type="radio" name="mode" value="sequential" checked>
+                    <div class="mode-card">
+                        <span class="mode-icon">&#x27A1;&#xFE0F;</span>
+                        <span class="mode-name">Sequential</span>
+                        <span class="mode-desc">Cards in order</span>
+                    </div>
+                </label>
+                <label class="mode-option">
+                    <input type="radio" name="mode" value="random">
+                    <div class="mode-card">
+                        <span class="mode-icon">&#x1F500;</span>
+                        <span class="mode-name">Random</span>
+                        <span class="mode-desc">Shuffled cards</span>
+                    </div>
+                </label>
+                <label class="mode-option">
+                    <input type="radio" name="mode" value="adaptive">
+                    <div class="mode-card">
+                        <span class="mode-icon">&#x1F9E0;</span>
+                        <span class="mode-name">Adaptive</span>
+                        <span class="mode-desc">Repeat missed cards</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg">Start Quiz</button>
+    </form>
+</div>
+{% endblock %}

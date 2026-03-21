@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ "Correct!" if is_correct else "Incorrect" }} — {{ deck_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="quiz-header">
+        <div class="quiz-info">
+            <span class="badge">{{ mode | title }}</span>
+            <span class="badge badge-outline">{{ deck_name }}</span>
+        </div>
+        <div class="progress-info">
+            {{ stats.correct }}/{{ stats.total }} correct
+            ({{ "%.0f" | format(stats.accuracy) }}%)
+        </div>
+        <div class="progress-bar">
+            {% set pct = (stats.total / total_cards * 100) | int %}
+            {% if pct > 100 %}{% set pct = 100 %}{% endif %}
+            <div class="progress-fill" style="width: {{ pct }}%"></div>
+        </div>
+    </div>
+
+    <div class="feedback-section">
+        <div class="flashcard flashcard-sm">
+            <div class="flashcard-label">Question</div>
+            <div class="flashcard-content">{{ card.front }}</div>
+        </div>
+
+        {% if is_correct %}
+        <div class="feedback feedback-correct">
+            <span class="feedback-icon">&#x2705;</span>
+            <div>
+                <strong>Correct!</strong>
+                <p>{{ expected }}</p>
+            </div>
+        </div>
+        {% else %}
+        <div class="feedback feedback-incorrect">
+            <span class="feedback-icon">&#x274C;</span>
+            <div>
+                <strong>Incorrect</strong>
+                <p>Your answer: <em>{{ user_answer or "(empty)" }}</em></p>
+                <p>Correct answer: <strong>{{ expected }}</strong></p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if quiz_over %}
+    <div class="quiz-over-message">
+        <p>Quiz complete!</p>
+        <a href="{{ url_for('results') }}" class="btn btn-primary btn-lg">View Results</a>
+    </div>
+    {% else %}
+    <form action="{{ url_for('next_card') }}" method="post">
+        <button type="submit" class="btn btn-primary btn-lg">Next Card &rarr;</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "flask-web-ui",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["web_app.py"],
+      "port": 5000,
+      "autoPort": true
+    }
+  ]
+}

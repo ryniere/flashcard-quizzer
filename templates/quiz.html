@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Quiz — {{ deck_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="quiz-header">
+        <div class="quiz-info">
+            <span class="badge">{{ mode | title }}</span>
+            <span class="badge badge-outline">{{ deck_name }}</span>
+        </div>
+        <div class="progress-info">
+            Card {{ card_number }} of {{ total_cards }}
+            {% if stats.total > 0 %}
+            &middot; {{ stats.correct }}/{{ stats.total }} correct
+            {% endif %}
+        </div>
+        <div class="progress-bar">
+            {% set pct = ((card_number - 1) / total_cards * 100) | int %}
+            <div class="progress-fill" style="width: {{ pct }}%"></div>
+        </div>
+    </div>
+
+    <div class="flashcard">
+        <div class="flashcard-label">Question</div>
+        <div class="flashcard-content">{{ card.front }}</div>
+    </div>
+
+    <form action="{{ url_for('answer') }}" method="post" class="answer-form">
+        <div class="form-group">
+            <label for="answer">Your Answer</label>
+            <input type="text" id="answer" name="answer" autofocus
+                   autocomplete="off" placeholder="Type your answer..."
+                   maxlength="500" class="input-lg">
+        </div>
+        <button type="submit" class="btn btn-primary">Submit Answer</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById("answer").focus();
+</script>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Results — {{ deck_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="results-header">
+        <h1>Quiz Complete!</h1>
+        <p>{{ deck_name }} &middot; {{ mode | title }} Mode</p>
+    </div>
+
+    {% if force_stopped %}
+    <div class="alert alert-warning">
+        Adaptive mode reached the retry limit. Some cards may still need practice.
+    </div>
+    {% endif %}
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.total }}</div>
+            <div class="stat-label">Total</div>
+        </div>
+        <div class="stat-card stat-correct">
+            <div class="stat-value">{{ stats.correct }}</div>
+            <div class="stat-label">Correct</div>
+        </div>
+        <div class="stat-card stat-incorrect">
+            <div class="stat-value">{{ stats.incorrect }}</div>
+            <div class="stat-label">Incorrect</div>
+        </div>
+        <div class="stat-card stat-accuracy">
+            <div class="stat-value">{{ stats.accuracy }}%</div>
+            <div class="stat-label">Accuracy</div>
+        </div>
+    </div>
+
+    {% if stats.missed %}
+    <div class="missed-section">
+        <h2>Cards to Review</h2>
+        <div class="missed-cards">
+            {% for card in stats.missed %}
+            <div class="missed-card">
+                <div class="missed-q">{{ card.front }}</div>
+                <div class="missed-a">{{ card.back }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="results-actions">
+        <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg">Play Again</a>
+    </div>
+</div>
+{% endblock %}
